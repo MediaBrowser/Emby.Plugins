@@ -27,10 +27,16 @@ namespace MediaBrowser.Plugins.ADEProvider
         /// <value>The HTTP client.</value>
         protected IHttpClient HttpClient { get; private set; }
 
-        public ADEProvider(ILogManager logManager, IServerConfigurationManager configurationManager, IHttpClient httpClient) 
+        /// <summary>
+        /// The _provider manager
+        /// </summary>
+        private readonly IProviderManager _providerManager;
+
+        public ADEProvider(ILogManager logManager, IServerConfigurationManager configurationManager, IHttpClient httpClient, IProviderManager providerManager) 
             : base(logManager, configurationManager)
         {
             HttpClient = httpClient;
+            _providerManager = providerManager;
 
             AppDomain.CurrentDomain.AssemblyResolve += CurrentDomainOnAssemblyResolve;
         }
@@ -87,12 +93,56 @@ namespace MediaBrowser.Plugins.ADEProvider
             doc.LoadHtml(html);
             
             var divNodes = doc.DocumentNode.Descendants("div").ToList();
-            
-            GetCast(divNodes, item);
 
-            GetSynopsisAndTagLine(divNodes, item);
+            if (!item.LockedFields.Contains(MetadataFields.Cast))
+            {
+                GetCast(divNodes, item);
+            }
+
+            if (!item.LockedFields.Contains(MetadataFields.Overview))
+            {
+                GetSynopsisAndTagLine(divNodes, item);
+            }
+
+            if (!item.LockedFields.Contains(MetadataFields.Genres))
+            {
+                GetCategories(divNodes, item);
+            }
+
+            GetImages(divNodes, item);
 
             return true;
+        }
+
+        private void GetImages(IEnumerable<HtmlNode> divNodes, BaseItem item)
+        {
+            var boxCoverNode = divNodes.FirstOrDefault(x => x.HasAttributes && x.Attributes["id"] != null && x.Attributes["id"].Value == "Boxcover");
+            if (boxCoverNode == null)
+            {
+                return;
+            }
+        }
+
+        private void GetCategories(IEnumerable<HtmlNode> divNodes, BaseItem item)
+        {
+            var categoriesNode = divNodes.FirstOrDefault(x => x.HasAttributes && x.Attributes["class"] != null && x.Attributes["class"].Value == "Section Categories");
+            if (categoriesNode == null)
+            {
+                return;
+            }
+
+            var cats = categoriesNode.Descendants("p").FirstOrDefault();
+            if (cats == null)
+            {
+                return;
+            }
+
+            item.Genres.Clear();
+
+            foreach (var cat in cats.InnerText.Split(new[] {','}))
+            {
+                item.AddGenre(cat.Trim());
+            }
         }
 
         private void GetSynopsisAndTagLine(IEnumerable<HtmlNode> divNodes, BaseItem item)
@@ -129,14 +179,14 @@ namespace MediaBrowser.Plugins.ADEProvider
             {
                 var person = new PersonInfo
                 {
-                    Type = "Actor"
+                    Type = PersonType.Actor
                 };
 
                 var name = cast.InnerText.Replace(" - (bio)", string.Empty).Trim();
                 if (name.ToLower().Contains("director"))
                 {
                     name = name.Replace("Director", string.Empty).Replace("director", string.Empty).Trim();
-                    person.Type = "Director";
+                    person.Type = PersonType.Director;
                 }
 
                 person.Name = name;
