@@ -364,10 +364,12 @@ namespace MediaBrowser.Plugins.ADEProvider
             get { return "1"; }
         }
 
+#if DEBUG
         protected override bool NeedsRefreshInternal(BaseItem item, BaseProviderInfo providerInfo)
         {
             return true;
         }
+#endif
 
         private Assembly CurrentDomainOnAssemblyResolve(object sender, ResolveEventArgs args)
         {
