@@ -109,18 +109,46 @@ namespace MediaBrowser.Plugins.ADEProvider
                 GetCategories(divNodes, item);
             }
 
-            GetImages(divNodes, item);
+            GetImages(divNodes, item, cancellationToken);
 
             return true;
         }
 
-        private void GetImages(IEnumerable<HtmlNode> divNodes, BaseItem item)
+        private void GetImages(IEnumerable<HtmlNode> divNodes, BaseItem item, CancellationToken cancellationToken)
         {
             var boxCoverNode = divNodes.FirstOrDefault(x => x.HasAttributes && x.Attributes["id"] != null && x.Attributes["id"].Value == "Boxcover");
-            if (boxCoverNode == null)
+            if (boxCoverNode == null || !boxCoverNode.ChildNodes.Any())
             {
                 return;
             }
+
+            var frontCover = boxCoverNode.ChildNodes[0];
+            var frontCoverUrl = GetHref(frontCover);
+            if (!string.IsNullOrEmpty(frontCoverUrl))
+            {
+                _providerManager.SaveImage(item, frontCoverUrl, _resourcePool, ImageType.Primary, null, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (boxCoverNode.ChildNodes.Count > 1)
+            {
+                var backCover = boxCoverNode.ChildNodes[1];
+                var backCoverUrl = GetHref(backCover);
+
+                if (!string.IsNullOrEmpty(backCoverUrl))
+                {
+                    _providerManager.SaveImage(item, backCoverUrl, _resourcePool, ImageType.BoxRear, null, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private string GetHref(HtmlNode frontCover)
+        {
+            if (frontCover.HasAttributes && frontCover.Attributes["href"] != null)
+            {
+                return frontCover.Attributes["href"].Value;
+            }
+
+            return string.Empty;
         }
 
         private void GetCategories(IEnumerable<HtmlNode> divNodes, BaseItem item)
