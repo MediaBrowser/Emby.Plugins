@@ -53,7 +53,7 @@ namespace MediaBrowser.Plugins.ADEProvider
 
             var adeId = item.GetProviderId("AdultDvdEmpire");
 
-            if (!string.IsNullOrEmpty(adeId))
+            if (!string.IsNullOrEmpty(adeId) && !force)
             {
                 data.LastRefreshStatus = ProviderRefreshStatus.Success;
                 return true;
@@ -72,7 +72,14 @@ namespace MediaBrowser.Plugins.ADEProvider
                 return false;
             }
 
-            return await GetItemDetails(item, probableItem, cancellationToken);
+            if (await GetItemDetails(item, probableItem, cancellationToken))
+            {
+                item.SetProviderId("AdultDvdEmpire", adeId);
+
+                return true;
+            }
+
+            return false;
         }
 
         private async Task<bool> GetItemDetails(BaseItem item, SearchItem probableItem, CancellationToken cancellationToken)
@@ -109,9 +116,41 @@ namespace MediaBrowser.Plugins.ADEProvider
                 GetCategories(divNodes, item);
             }
 
+            GetDetails(divNodes, item);
+
             GetImages(divNodes, item, cancellationToken);
 
+            item.OfficialRating = "XXX";
+
             return true;
+        }
+
+        private void GetDetails(IEnumerable<HtmlNode> divNodes, BaseItem item)
+        {
+            var detailsNode = divNodes.FirstOrDefault(x => x.HasAttributes && x.Attributes["class"] != null && x.Attributes["class"].Value == "Section ProductInfo");
+            if (detailsNode == null)
+            {
+                return;
+            }
+
+            var productHtml = detailsNode.InnerHtml;
+            var releasedIndex = productHtml.IndexOf("<strong>Released</strong>", StringComparison.Ordinal);
+            if (releasedIndex != -1)
+            {
+                var released = productHtml.Substring(releasedIndex + "<strong>Released</strong>".Length);
+                released = released.Substring(0, released.IndexOf("<br", StringComparison.Ordinal));
+                DateTime releasedDate;
+                if (DateTime.TryParse(released, out releasedDate))
+                {
+                    item.PremiereDate = releasedDate;
+                }
+            }
+
+            var studioNode = detailsNode.Descendants("a").FirstOrDefault();
+            if (studioNode != null)
+            {
+                item.AddStudio(studioNode.InnerText.Trim());
+            }
         }
 
         private void GetImages(IEnumerable<HtmlNode> divNodes, BaseItem item, CancellationToken cancellationToken)
