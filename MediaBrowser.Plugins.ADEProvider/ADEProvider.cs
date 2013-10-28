@@ -32,11 +32,14 @@ namespace MediaBrowser.Plugins.ADEProvider
         /// </summary>
         private readonly IProviderManager _providerManager;
 
+        private readonly ILogger _logger;
+
         public ADEProvider(ILogManager logManager, IServerConfigurationManager configurationManager, IHttpClient httpClient, IProviderManager providerManager) 
             : base(logManager, configurationManager)
         {
             HttpClient = httpClient;
             _providerManager = providerManager;
+            _logger = logManager.GetLogger("ADEProvider");
 
             AppDomain.CurrentDomain.AssemblyResolve += CurrentDomainOnAssemblyResolve;
         }
@@ -72,6 +75,8 @@ namespace MediaBrowser.Plugins.ADEProvider
                 return false;
             }
 
+            item.Name = probableItem.Name;
+
             if (await GetItemDetails(item, probableItem, cancellationToken))
             {
                 item.SetProviderId("AdultDvdEmpire", adeId);
@@ -85,6 +90,8 @@ namespace MediaBrowser.Plugins.ADEProvider
         private async Task<bool> GetItemDetails(BaseItem item, SearchItem probableItem, CancellationToken cancellationToken)
         {
             string html;
+
+            _logger.Info("Getting details for: {0}", item.Name);
 
             using (var stream = await HttpClient.Get(new HttpRequestOptions
             {
@@ -241,20 +248,21 @@ namespace MediaBrowser.Plugins.ADEProvider
                 return;
             }
 
-            var castList = castNode.Descendants("li").ToList();
-            foreach (var cast in castList)
+            var castList = castNode.Descendants("ul").FirstOrDefault();
+            if (castList == null)
+            {
+                return;
+            }
+
+            var realCastList = castList.Descendants("li").ToList();
+            foreach (var cast in realCastList)
             {
                 var person = new PersonInfo
                 {
                     Type = PersonType.Actor
                 };
 
-                var name = cast.InnerText.Replace(" - (bio)", string.Empty).Trim();
-                if (name.ToLower().Contains("director"))
-                {
-                    name = name.Replace("Director", string.Empty).Replace("director", string.Empty).Trim();
-                    person.Type = PersonType.Director;
-                }
+                var name = CleanItem(cast.InnerText, person);
 
                 person.Name = name;
 
@@ -262,11 +270,36 @@ namespace MediaBrowser.Plugins.ADEProvider
             }
         }
 
+        private string CleanItem(string name, PersonInfo person)
+        {
+            if (name.ToLower().Contains("director"))
+            {
+                name = name.Replace("Director", string.Empty).Replace("director", string.Empty).Trim();
+                person.Type = PersonType.Director;
+            }
+
+            if (name.ToLower().Contains("producer"))
+            {
+                name = name.Replace("Producer", string.Empty).Replace("producer", string.Empty).Trim();
+                person.Type = PersonType.Producer;
+            }
+
+            var endOfName = name.IndexOf(" - (", StringComparison.Ordinal);
+            if (endOfName == -1)
+            {
+                return name.Trim();
+            }
+
+            return name.Substring(0, endOfName).Trim();
+        }
+
         private async Task<List<SearchItem>> GetSearchItems(string name, CancellationToken cancellationToken)
         {
             var url = string.Format(SearchUrl, name);
 
             string html;
+
+            _logger.Info("Searching for: {0}", name);
 
             using (var stream = await HttpClient.Get(new HttpRequestOptions
             {
@@ -334,12 +367,13 @@ namespace MediaBrowser.Plugins.ADEProvider
 
                         result.Add(item);
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        string s = "";
                     }
                 }
             }
+
+            _logger.Info("Found {0} result(s)", result.Count);
 
             return result;
         }
@@ -377,7 +411,7 @@ namespace MediaBrowser.Plugins.ADEProvider
 
             Assembly assembly;
             var resourceName = string.Format("MediaBrowser.Plugins.ADEProvider.Assets.Assemblies.{0}.dll", askedAssembly.Name);
-            var a = Assembly.GetExecutingAssembly();
+            
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
             {
                 if (stream == null)
