@@ -51,29 +51,21 @@ namespace MediaBrowser.Plugins.SoundCloud
 
         public async Task<ChannelItemResult> GetChannelItems(InternalChannelItemQuery query, CancellationToken cancellationToken)
         {
-            IEnumerable<ChannelItemInfo> items;
-
             if (query.FolderId == null)
             {
-                items = await GetChannels(cancellationToken).ConfigureAwait(false);
+                return await GetChannels(cancellationToken).ConfigureAwait(false);
             }
-            else
-            {
-                var catSplit = query.FolderId.Split('_');
-                query.FolderId = catSplit[1];
-                items = await GetTracks(query, cancellationToken).ConfigureAwait(false);
-            }
+            
+            var catSplit = query.FolderId.Split('_');
+            query.FolderId = catSplit[1];
+            return await GetTracks(query, cancellationToken).ConfigureAwait(false);
+            
 
-            return new ChannelItemResult
-            {
-                Items = items.ToList(),
-                CacheLength = TimeSpan.FromDays(3)
-            };
         }
 
-        private async Task<IEnumerable<ChannelItemInfo>> GetChannels(CancellationToken cancellationToken)
+        private async Task<ChannelItemResult> GetChannels(CancellationToken cancellationToken)
         {
-            return new List<ChannelItemInfo>
+            var items = new List<ChannelItemInfo>
             {
                 new ChannelItemInfo
                 {
@@ -88,15 +80,22 @@ namespace MediaBrowser.Plugins.SoundCloud
                     Type = ChannelItemType.Folder
                 }
             };
+
+            return new ChannelItemResult
+            {
+                Items = items.ToList(),
+                CacheLength = TimeSpan.FromDays(3),
+            };
         }
 
-        private async Task<IEnumerable<ChannelItemInfo>> GetTracks(InternalChannelItemQuery query, CancellationToken cancellationToken)
+        private async Task<ChannelItemResult> GetTracks(InternalChannelItemQuery query, CancellationToken cancellationToken)
         {
+            var offset = query.StartIndex.GetValueOrDefault();
             var downloader = new SoundCloudListingDownloader(_logger, _jsonSerializer, _httpClient);
             var songs = await downloader.GetTrackList(query, cancellationToken)
                 .ConfigureAwait(false);
 
-            return songs.Select(i => new ChannelItemInfo
+            var tracks = songs.Select(i => new ChannelItemInfo
             {
                 ContentType = ChannelMediaContentType.Song,
                 ImageUrl = i.artwork_url,
@@ -115,6 +114,16 @@ namespace MediaBrowser.Plugins.SoundCloud
                     }
                 }
             });
+
+            var channelItemInfos = tracks as IList<ChannelItemInfo> ?? tracks.ToList();
+            
+            return new ChannelItemResult
+            {
+                Items = channelItemInfos.ToList(),
+                CacheLength = TimeSpan.FromDays(3),
+                TotalRecordCount = channelItemInfos.Count() + offset + 1
+
+            };
         }
 
         public Task<DynamicImageResponse> GetChannelImage(ImageType type, CancellationToken cancellationToken)
@@ -170,6 +179,7 @@ namespace MediaBrowser.Plugins.SoundCloud
                   {
                        ChannelMediaType.Audio
                   },
+                  MaxPageSize = 200
             };
         }
 
