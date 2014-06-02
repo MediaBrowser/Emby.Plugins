@@ -25,24 +25,15 @@ namespace MediaBrowser.Plugins.SoundCloud
         public async Task<List<RootObject>> GetTrackList(InternalChannelItemQuery query, CancellationToken cancellationToken)
         {
             // need to get this working. Its not returning a limit or a start index value? ...
-            
-            int? page = null;
             var url = "";
+            var offset = query.StartIndex.GetValueOrDefault();
 
-            if (query.StartIndex.HasValue && query.Limit.HasValue)
-            {
-                page = 1 + (query.StartIndex.Value / query.Limit.Value) % query.Limit.Value;
-            }
-
-            _logger.Debug("LIMIT : " + (query.Limit.HasValue ? query.Limit.Value : 30));
-
-
-            var limit = query.Limit.HasValue ? query.Limit.Value : 30;
+            var limit = query.Limit.HasValue ? query.Limit.Value : 50;
             
             if (query.FolderId == "hot")
-                url = "http://api.soundcloud.com/tracks.json?client_id=78fd88dde7ebf8fdcad08106f6d56ab6&filter=streamable&limit="+limit+"&order=hotness&offset=" + page;
+                url = "http://api.soundcloud.com/tracks.json?client_id=78fd88dde7ebf8fdcad08106f6d56ab6&filter=streamable&limit="+ limit +"&order=hotness&offset=" + offset;
             if (query.FolderId == "latest")
-                url = "http://api.soundcloud.com/tracks.json?client_id=78fd88dde7ebf8fdcad08106f6d56ab6&filter=streamable&limit=" + limit + "&order=created_at&offset=" + page;
+                url = "http://api.soundcloud.com/tracks.json?client_id=78fd88dde7ebf8fdcad08106f6d56ab6&filter=streamable&limit=" + limit + "&order=created_at&offset=" + offset;
             
             using (var json = await _httpClient.Get(url, CancellationToken.None).ConfigureAwait(false))
             {
