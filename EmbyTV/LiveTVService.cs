@@ -464,7 +464,8 @@ namespace EmbyTV
 
         public Task ResetTuner(string id, CancellationToken cancellationToken)
         {
-            return Task.FromResult(0);
+            // Lets the user know this is not working.
+            throw new NotImplementedException();
         }
 
         public Task<MediaSourceInfo> GetChannelStream(string channelId, string streamId, CancellationToken cancellationToken)
