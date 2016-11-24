@@ -108,7 +108,7 @@ namespace MediaBrowser.Plugins.Lastfm.Providers
                 }
                 if (!string.IsNullOrEmpty(data.bio.placeformed) && !artist.LockedFields.Contains(MetadataFields.ProductionLocations))
                 {
-                    artist.AddProductionLocation(data.bio.placeformed);
+                    artist.ProductionLocations.Add(data.bio.placeformed);
                 }
             }
 
