@@ -6,14 +6,13 @@ using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Logging;
-using MovieOrganizer;
 using MovieOrganizer.Api;
 using MovieOrganizer.Service;
 using System.IO;
-using System.Web;
 using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Services;
+using MovieOrganizer.Html;
 
 namespace MovieOrganizer
 {
@@ -27,7 +26,7 @@ namespace MovieOrganizer
         private readonly ILogger _logger;
         private readonly IServerApplicationHost _appHost;
         private readonly IFileSystem _fileSystem;
-        private readonly IHttpServer _httpServer;
+        private readonly IHttpResultFactory _resultFactory;
         private readonly IServerConfigurationManager _configurationManager;
         private readonly ILocalizationManager _localizationManager;
         private readonly IServerManager _serverManager;
@@ -36,6 +35,7 @@ namespace MovieOrganizer
 
         private MovieOrganizerApi _api;
         private MovieOrganizerService _service;
+        private StaticFileServer _staticFileServer;
 
         public static ServerEntryPoint Instance { get; private set; }
 
@@ -55,8 +55,8 @@ namespace MovieOrganizer
             ILibraryManager libraryManager,
             ILibraryMonitor libraryMonitor, 
             ILogManager logger, 
-            IServerApplicationHost appHost, 
-            IHttpServer httpServer, 
+            IServerApplicationHost appHost,
+            IHttpResultFactory resultFactory, 
             IFileSystem fileSystem,
             ILocalizationManager localizationManager,
             IServerManager serverManager,
@@ -70,14 +70,13 @@ namespace MovieOrganizer
             _appHost = appHost;
             _fileSystem = fileSystem;
             _configurationManager = configurationManager;
-            _httpServer = httpServer;
+            _resultFactory = resultFactory;
             _localizationManager = localizationManager;
             _serverManager = serverManager;
             _providerManager = providerManager;
             _fileOrganizationService = fileOrganizationService;
 
-            var serviceStackHost = (IAppHost)httpServer;
-            serviceStackHost.RawHttpHandlers.Add(ProcessRequestRaw);
+            HtmlHelper.InstallFiles(Plugin.Instance.AppPaths, Plugin.Instance.PluginConfiguration);
 
             _service = new MovieOrganizerService(
                 _configurationManager, 
@@ -92,6 +91,8 @@ namespace MovieOrganizer
                 _fileOrganizationService);
 
             _api = new MovieOrganizerApi(logger, _service, _libraryManager);
+
+            _staticFileServer = new StaticFileServer(logger, _resultFactory);
         }
 
         /// <summary>
@@ -108,39 +109,5 @@ namespace MovieOrganizer
         {
         }
 
-        public virtual HttpAsyncTaskHandler ProcessRequestRaw(IHttpRequest request)
-        {
-            MemoryStream resultStream = null;
-
-            if (request.PathInfo.Contains("/components/fileorganizer/fileorganizer.js"))
-            {
-                resultStream = HtmlHelper.OrganizerScript;
-            }
-            else if (request.PathInfo.Contains("/components/fileorganizer/fileorganizer.template.html"))
-            {
-                resultStream = HtmlHelper.OrganizerTemplate;
-            }
-
-            if (resultStream != null)
-            {
-                var handler = new CustomActionHandler((httpReq, httpRes) =>
-                {
-                    httpRes.ContentType = "text/html";
-
-                    lock (resultStream)
-                    {
-                        resultStream.Seek(0, SeekOrigin.Begin);
-                        resultStream.WriteTo(httpRes.OutputStream);
-                        httpRes.EndRequest();
-                    }
-
-                    httpRes.End();
-                });
-
-                return handler;
-            }
-
-            return null;
-        }
     }
 }

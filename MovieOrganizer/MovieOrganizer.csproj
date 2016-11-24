@@ -60,6 +60,7 @@
     <Compile Include="Api\MovieOrganizerApi.cs" />
     <Compile Include="Configuration\PluginConfiguration.cs" />
     <Compile Include="HtmlHelper.cs" />
+    <Compile Include="Html\StaticFileServer.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServerEntryPoint.cs" />

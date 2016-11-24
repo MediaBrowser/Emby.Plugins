@@ -1,4 +1,4 @@
-﻿define(['dialogHelper', 'require', 'emby-checkbox', 'emby-input', 'emby-button', 'emby-select', 'formDialogStyle'], function (dialogHelper, require) {
+﻿define(['dialogHelper', 'require', 'emby-checkbox', 'emby-input', 'emby-button', 'emby-select', 'paper-icon-button-light', 'formDialogStyle'], function (dialogHelper, require) {
 
     var extractedName;
     var extractedYear;
@@ -137,10 +137,10 @@
         var resultId = dlg.querySelector('#hfResultId').value;
         var seriesId = dlg.querySelector('#selectSeries').value;
 
-        var targetFolder;
-        var newProviderIds;
-        var newSeriesName;
-        var newSeriesYear;
+        var targetFolder = null;
+        var newProviderIds = null;
+        var newSeriesName = null;
+        var newSeriesYear = null;
 
         if (seriesId == "##NEW##" && currentNewItem != null) {
             seriesId = null;
@@ -296,17 +296,15 @@
         }
     }
 
-    function selectTab(dlg, tabIndex) {
+    function selectType(dlg) {
 
-        if (tabIndex == 0) {
-            dlg.querySelector('#episode').classList.add('ui-btn-active');
-            dlg.querySelector('#movie').classList.remove('ui-btn-active');
+        var type = dlg.querySelector('#selectContentType').value;
+
+        if (type == 'episode') {
             dlg.querySelector('#organizeSeries').classList.remove('hide');
             dlg.querySelector('#organizeMovies').classList.add('hide');
         }
         else {
-            dlg.querySelector('#episode').classList.remove('ui-btn-active');
-            dlg.querySelector('#movie').classList.add('ui-btn-active');
             dlg.querySelector('#organizeSeries').classList.add('hide');
             dlg.querySelector('#organizeMovies').classList.remove('hide');
         }
@@ -343,7 +341,6 @@
                     html += Globalize.translateDocument(template);
 
                     dlg.innerHTML = html;
-                    document.body.appendChild(dlg);
 
                     dlg.querySelector('.formDialogHeaderTitle').innerHTML = Globalize.translate('FileOrganizeManually');
 
@@ -394,17 +391,12 @@
                         selectedSeriesChanged(dlg);
                     });
 
-                    dlg.querySelector('#episode').addEventListener('click', function (e) {
+                    dlg.querySelector('#selectContentType').addEventListener('change', function (e) {
 
-                        selectTab(dlg, 0);
+                        selectType(dlg);
                     });
 
-                    dlg.querySelector('#movie').addEventListener('click', function (e) {
-
-                        selectTab(dlg, 1);
-                    });
-
-                    selectTab(dlg, 0);
+                    dlg.querySelector('#selectContentType').value = 'episode';
 
                     initForms(dlg, item);
                 };

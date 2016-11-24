@@ -1,30 +1,34 @@
 ﻿<div class="formDialogHeader">
-    <button is="emby-button" class="btnCancel autoSize" tabindex="-1"><i class="md-icon">&#xE5C4;</i></button>
-    <div class="formDialogHeaderTitle">
-    </div>
+    <button is="paper-icon-button-light" class="btnCancel autoSize" tabindex="-1"><i class="md-icon">&#xE5C4;</i></button>
+    <h3 class="formDialogHeaderTitle"></h3>
 </div>
 
-<div class="formDialogContent smoothScrollY">
-    <div class="dialog-content-centered">
-        <div id="tabcontainer" class="readOnlyContent" style="margin:auto;">
-            <div data-role="controlgroup" data-type="horizontal" class="localnav" data-mini="true" style="margin-top: 1em">
-                <a id="episode" href="#" data-role="button" class="ui-btn-active">Series Episode</a>
-                <a id="movie" href="#" data-role="button">Organize Movie</a>
-            </div>
+<div class="formDialogContent smoothScrollY" style="padding-top: 2em;">
+    <div class="dialogContentInner dialog-content-centered">
+        <div id="typeContainer" style="margin:auto;">
+            <h3 class="selectContainer fldSelectContentType">
+                <select is="emby-select" id="selectContentType" label="Organize Content Type" required>
+                    <option value="episode" selected>Series Episode</option>
+                    <option value="movie">Movie</option>
+                </select>
+            </h3>
         </div>
 
         <form id="organizeSeries" class="episodeCorrectionForm" style="margin:auto;">
 
-            <p><b>Filename:</b> <span class="inputFile"></span></p>
-            <p class="paraInputSeriesName"><b>Extracted Series Name:</b> <span class="inputSeriesName"></span></p>
-            <p class="paraInputYear"><b>Extracted Year::</b> <span class="inputYear"></span></p>
+            <p><span class="fieldDescription">Filename:</span> <span class="inputFile"></span></p>
+            <p class="paraInputSeriesName"><span class="fieldDescription">Extracted Series Name:</span> <span class="inputSeriesName"></span></p>
+            <p class="paraInputYear"><span class="fieldDescription">Extracted Year:</span> <span class="inputYear"></span></p>
 
-            <div class="selectContainer" style="margin: 2em 0 1em;">
+            <div style="margin: 2em 0 0;">
                 <div style="display:flex; align-items:center;">
                     <div style="flex-grow:1;">
-                        <select is="emby-select" id="selectSeries" label="${LabelSeries}" required></select>
+                        <select is="emby-select" id="selectSeries" label="${LabelSeries}" required style="margin-bottom: 0;"></select>
                     </div>
-                    <button type="button" is="emby-button" id="btnNewSeries" class="autoSize" title="${ButtonNew}"><i class="md-icon">add</i></button>
+                    <button type="button" is="emby-button" id="btnNewSeries" class="raised btnNewSeries submit mini" title="${ButtonNew}" style="margin-left:1em; margin-bottom: 1em;">
+                        <i class="md-icon">add</i>
+                        <span>${ButtonNew}</span>
+                    </button>
                 </div>
             </div>
             <div class="selectContainer fldSelectSeriesFolder hide">
@@ -52,19 +56,23 @@
                     <span>${OptionRememberOrganizeCorrection} <span class="extractedName" style="font-weight: bold; font-style: italic" /></span>
                 </label>
             </div>
+
             <br />
-            <button is="emby-button" type="submit" class="raised submit block">
-                <i class="md-icon">check</i>
-                <span>${ButtonOk}</span>
-            </button>
             <input id="hfResultId" type="hidden" />
+
+            <div class="formDialogFooter">
+                <button is="emby-button" type="submit" class="raised button-submit block formDialogFooterItem">
+                    <span>${ButtonOk}</span>
+                </button>
+            </div>
+
         </form>
 
         <form class="organizeMovieForm hide" id="organizeMovies" style="margin:auto;">
 
-            <p><b>Filename:</b><br /><span class="inputFile2"></span></p>
-            <p class="paraInputSeriesName2"><b>Extracted Name:</b><br /><span class="inputSeriesName2"></span></p>
-            <p class="paraInputYear2"><b>Extracted Year::</b><br /><span class="inputYear2"></span></p>
+            <p><span class="fieldDescription">Filename:</span> <span class="inputFile2"></span></p>
+            <p class="paraInputSeriesName2"><span class="fieldDescription">Extracted Series Name:</span> <span class="inputSeriesName2"></span></p>
+            <p class="paraInputYear2"><span class="fieldDescription">Extracted Year:</span> <span class="inputYear2"></span></p>
 
             <div style="margin: 2em 0 1em;">
                 <button is="emby-button" type="button" class="raised block" id="btnIdentifyMovie">
