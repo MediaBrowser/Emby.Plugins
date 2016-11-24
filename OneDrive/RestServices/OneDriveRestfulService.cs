@@ -5,11 +5,12 @@ using System.Threading.Tasks;
 using MediaBrowser.Controller.Net;
 using OneDrive.Api;
 using OneDrive.Configuration;
+using MediaBrowser.Model.Services;
 
 namespace OneDrive.RestServices
 {
     [Authenticated]
-    public class OneDriveRestfulService : IRestfulService
+    public class OneDriveRestfulService : IService
     {
         private readonly IConfigurationRetriever _configurationRetriever;
         private readonly ILiveAuthenticationApi _liveAuthenticationApi;
