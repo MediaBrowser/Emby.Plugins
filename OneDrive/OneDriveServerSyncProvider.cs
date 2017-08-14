@@ -5,9 +5,9 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Interfaces.IO;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Sync;
+using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Net;
@@ -105,21 +105,26 @@ namespace OneDrive
             });
         }
 
-        public async Task<QueryResult<FileMetadata>> GetFiles(FileQuery query, SyncTarget target, CancellationToken cancellationToken)
+        public async Task<QueryResult<FileSystemMetadata>> GetFiles(string[] pathParts, SyncTarget target, CancellationToken cancellationToken)
         {
             try
             {
-                return await TryGetFiles(query, target, cancellationToken);
+                return await TryGetFiles(pathParts, target, cancellationToken);
             }
             catch (HttpException ex)
             {
                 if (ex.StatusCode == HttpStatusCode.NotFound)
                 {
-                    return new QueryResult<FileMetadata>();
+                    return new QueryResult<FileSystemMetadata>();
                 }
 
                 throw;
             }
+        }
+
+        public Task<QueryResult<FileSystemMetadata>> GetFiles(SyncTarget target, CancellationToken cancellationToken)
+        {
+            return GetFiles(null, target, cancellationToken);
         }
 
         public async Task<SyncedFileInfo> GetSyncedFileInfo(string id, SyncTarget target, CancellationToken cancellationToken)
@@ -215,74 +220,85 @@ namespace OneDrive
             return buffer;
         }
 
-        private async Task<QueryResult<FileMetadata>> TryGetFiles(FileQuery query, SyncTarget target, CancellationToken cancellationToken)
+        private async Task<QueryResult<FileSystemMetadata>> TryGetFiles(string[] pathParts, SyncTarget target, CancellationToken cancellationToken)
         {
             var oneDriveCredentials = CreateOneDriveCredentials(target);
 
-            if (!string.IsNullOrEmpty(query.Id))
-            {
-                return await GetFileById(query.Id, oneDriveCredentials, cancellationToken);
-            }
+            ////if (!string.IsNullOrEmpty(query.Id))
+            ////{
+            ////    return await GetFileById(query.Id, oneDriveCredentials, cancellationToken);
+            ////}
 
-            if (query.FullPath != null && query.FullPath.Length > 0)
+            var fullPath = FindPathFromFileQuery(pathParts, target);
+
+            if (fullPath != null && fullPath.Length > 0)
             {
-                var path = GetFullPath(query.FullPath);
-                return await GetFileByPath(path, oneDriveCredentials, cancellationToken);
+                return await GetFileByPath(fullPath, oneDriveCredentials, cancellationToken);
             }
 
             return await GetAllFiles(oneDriveCredentials, cancellationToken);
         }
 
-        private async Task<QueryResult<FileMetadata>> GetFileById(string id, OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
+        private string FindPathFromFileQuery(string[] parts, SyncTarget target)
+        {
+            if (parts != null && parts.Length > 0)
+            {
+                return GetFullPath(parts);
+            }
+
+            return string.Empty;
+        }
+
+        private async Task<QueryResult<FileSystemMetadata>> GetFileById(string id, OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
         {
             var viewChangeResult = await _oneDriveApi.ViewChangeById(id, oneDriveCredentials, cancellationToken);
-            var viewChanges = viewChangeResult.value.Select(CreateFileMetadata).ToArray();
+            var viewChanges = viewChangeResult.value.Select(CreateFileSystemMetadata).ToArray();
 
-            return new QueryResult<FileMetadata>
+            return new QueryResult<FileSystemMetadata>
             {
                 Items = viewChanges,
                 TotalRecordCount = viewChanges.Length
             };
         }
 
-        private async Task<QueryResult<FileMetadata>> GetFileByPath(string path, OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
+        private async Task<QueryResult<FileSystemMetadata>> GetFileByPath(string path, OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
         {
             var viewChangeResult = await _oneDriveApi.ViewChangeByPath(path, oneDriveCredentials, cancellationToken);
-            var viewChanges = viewChangeResult.value.Select(CreateFileMetadata).ToArray();
+            var viewChanges = viewChangeResult.value.Select(CreateFileSystemMetadata).ToArray();
 
-            return new QueryResult<FileMetadata>
+            return new QueryResult<FileSystemMetadata>
             {
                 Items = viewChanges,
                 TotalRecordCount = viewChanges.Length
             };
         }
 
-        private async Task<QueryResult<FileMetadata>> GetAllFiles(OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
+        private async Task<QueryResult<FileSystemMetadata>> GetAllFiles(OneDriveCredentials oneDriveCredentials, CancellationToken cancellationToken)
         {
             var viewChangeResult = new ViewChangesResult { HasMoreChanges = true };
-            var files = new List<FileMetadata>();
+            var files = new List<FileSystemMetadata>();
 
             while (viewChangeResult.HasMoreChanges)
             {
                 viewChangeResult = await _oneDriveApi.ViewChanges(viewChangeResult.Token, oneDriveCredentials, cancellationToken);
-                var newFiles = viewChangeResult.value.Select(CreateFileMetadata);
+                var newFiles = viewChangeResult.value.Select(CreateFileSystemMetadata);
                 files.AddRange(newFiles);
             }
 
-            return new QueryResult<FileMetadata>
+            return new QueryResult<FileSystemMetadata>
             {
                 Items = files.ToArray(),
                 TotalRecordCount = files.Count
             };
         }
 
-        private FileMetadata CreateFileMetadata(ViewChange viewChange)
+        private FileSystemMetadata CreateFileSystemMetadata(ViewChange viewChange)
         {
-            return new FileMetadata
+            return new FileSystemMetadata
             {
-                Id = viewChange.id,
+                FullName = viewChange.id,
                 Name = viewChange.name,
-                IsFolder = viewChange.folder != null
+                IsDirectory = viewChange.folder != null
             };
         }
 

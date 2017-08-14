@@ -8,9 +8,9 @@ using MetadataViewer;
 using MetadataViewer.Api;
 using MetadataViewer.Service;
 using System.IO;
-using System.Web;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Services;
+using MetadataViewer.Html;
 
 namespace Trakt
 {
@@ -23,10 +23,11 @@ namespace Trakt
         private readonly ILogger _logger;
         private readonly IServerApplicationHost _appHost;
         private readonly IFileSystem _fileSystem;
-        private readonly IHttpServer _httpServer;
         private readonly IServerConfigurationManager _configurationManager;
+        private readonly IHttpResultFactory _resultFactory;
         private MetadataViewerApi _api;
         private MetadataViewerService _service;
+        private StaticFileServer _staticFileServer;
 
         public static ServerEntryPoint Instance { get; private set; }
 
@@ -41,21 +42,25 @@ namespace Trakt
         /// <param name="httpClient"></param>
         /// <param name="appHost"></param>
         /// <param name="fileSystem"></param>
-        public ServerEntryPoint(IServerConfigurationManager configurationManager, ILibraryManager libraryManager, ILogManager logger, IServerApplicationHost appHost, IHttpServer httpServer, IFileSystem fileSystem)
+        public ServerEntryPoint(IServerConfigurationManager configurationManager, ILibraryManager libraryManager, ILogManager logger, IServerApplicationHost appHost, IHttpResultFactory resultFactory, IFileSystem fileSystem)
         {
+            _logger = logger.GetLogger("MetadataViewer");
+            _logger.Info("[MetadataViewer] ServerEntryPoint");
+
             Instance = this;
             _libraryManager = libraryManager;
-            _logger = logger.GetLogger("MetadataViewer");
             _appHost = appHost;
             _fileSystem = fileSystem;
             _configurationManager = configurationManager;
-            _httpServer = httpServer;
+            _resultFactory = resultFactory;
 
-            var serviceStackHost = (IAppHost)httpServer;
-            serviceStackHost.RawHttpHandlers.Add(ProcessRequestRaw);
+            HtmlHelper.InstallFiles(Plugin.Instance.AppPaths, Plugin.Instance.PluginConfiguration);
 
             _service = new MetadataViewerService(_configurationManager, logger, _fileSystem, _appHost);
             _api = new MetadataViewerApi(logger, _service, _libraryManager);
+            _staticFileServer = new StaticFileServer(logger, _resultFactory);
+
+            _logger.Info("[MetadataViewer] ServerEntryPoint Exit");
         }
 
         /// <summary>
@@ -70,45 +75,6 @@ namespace Trakt
         /// </summary>
         public void Dispose()
         {
-        }
-
-        public virtual HttpAsyncTaskHandler ProcessRequestRaw(IHttpRequest request)
-        {
-            MemoryStream resultStream = null;
-
-            if (request.PathInfo.Contains("/components/metadataviewer/metadataviewer.js"))
-            {
-                resultStream = HtmlHelper.ViewerScript;
-            }
-            else if (request.PathInfo.Contains("/components/metadataviewer/metadataviewer.template.html"))
-            {
-                resultStream = HtmlHelper.ViewerTemplate;
-            }
-            else if (request.PathInfo.Contains("/bower_components/emby-webcomponents/itemcontextmenu.js"))
-            {
-                resultStream = HtmlHelper.ModifiedContextMenu;
-            }
-
-            if (resultStream != null)
-            {
-                var handler = new CustomActionHandler((httpReq, httpRes) =>
-                {
-                    httpRes.ContentType = "text/html";
-
-                    lock (resultStream)
-                    {
-                        resultStream.Seek(0, SeekOrigin.Begin);
-                        resultStream.WriteTo(httpRes.OutputStream);
-                        httpRes.EndRequest();
-                    }
-
-                    httpRes.End();
-                });
-
-                return handler;
-            }
-
-            return null;
         }
     }
 }

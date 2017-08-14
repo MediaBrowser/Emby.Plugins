@@ -12,9 +12,10 @@ namespace MetadataViewer
         public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer)
             : base(appPaths, xmlSerializer)
         {
+            //_logger.Info("[MetadataViewer] ServerEntryPoint");
+
             Instance = this;
             _appPaths = appPaths;
-            HtmlHelper.InstallFiles(_appPaths, PluginConfiguration);
         }
 
         public override string Name
@@ -42,7 +43,12 @@ namespace MetadataViewer
         }
 
         public static Plugin Instance { get; private set; }
-        
+
+        public IApplicationPaths AppPaths
+        {
+            get { return _appPaths; }
+        }
+
         public PluginConfiguration PluginConfiguration
         {
             get { return Configuration; }
