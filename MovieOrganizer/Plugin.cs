@@ -14,7 +14,6 @@ namespace MovieOrganizer
         {
             Instance = this;
             _appPaths = appPaths;
-            HtmlHelper.InstallFiles(_appPaths, PluginConfiguration);
         }
 
         public override string Name
@@ -42,7 +41,12 @@ namespace MovieOrganizer
         }
 
         public static Plugin Instance { get; private set; }
-        
+
+        public IApplicationPaths AppPaths
+        {
+            get { return _appPaths; }
+        }
+
         public PluginConfiguration PluginConfiguration
         {
             get { return Configuration; }
